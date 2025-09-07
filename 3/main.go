@@ -7,7 +7,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -51,16 +50,13 @@ func (wp *workerPool) start() {
 	}
 }
 
-func (wp *workerPool) stop() {
+func (wp *workerPool) stop(sigCh <-chan os.Signal) {
 	fmt.Println("Initiating drain...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	for len(wp.jobs) > 0 {
 		select {
-		case <-ctx.Done():
-			fmt.Println("Drain timeout, forcing close.")
+		case <-sigCh:
+			fmt.Println("\nStop draining. Forcing close")
 			close(wp.jobs)
 			return
 		default:
@@ -101,7 +97,7 @@ func main() {
 		select {
 		case <-sigCh:
 			fmt.Println("\nReceived shutdown signal.")
-			pool.stop()
+			pool.stop(sigCh)
 			return
 		default:
 			pool.jobs <- time.Now()
